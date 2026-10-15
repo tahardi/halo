@@ -1,0 +1,8 @@
+appId: com.tahardi.halo
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: 'app-title'
+    timeout: 60000

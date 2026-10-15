@@ -1,0 +1,103 @@
+name: App
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+  schedule:
+    - cron: '0 7 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app-format:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: './app/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: './app/package-lock.json'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Check
+        run: npm run format:check
+
+  app-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: './app/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: './app/package-lock.json'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Check
+        run: npm run lint
+
+  app-typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: './app/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: './app/package-lock.json'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Check
+        run: npm run typecheck
+
+  app-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: './app/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: './app/package-lock.json'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Check
+        run: npm run test
