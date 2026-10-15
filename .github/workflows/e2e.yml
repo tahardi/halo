@@ -1,0 +1,93 @@
+name: E2E
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+  schedule:
+    - cron: '0 8 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app-e2e:
+    runs-on: macos-26
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: './app/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: './app/package-lock.json'
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Prebuild iOS
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Cache Pods
+        uses: actions/cache@v6
+        with:
+          path: app/ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}
+
+      - name: Install Pods
+        run: cd ios && pod install
+
+      - name: Start Simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | jq -r '[.devices[][]|select(.name|startswith("iPhone"))][0].udid')
+          xcrun simctl boot "$UDID"
+
+      - name: Build for Simulator
+        run: >
+          xcodebuild -workspace ios/Halo.xcworkspace -scheme Halo -configuration Release
+          -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build
+          ARCHS=arm64 ONLY_ACTIVE_ARCH=YES | tail -50
+
+      - name: Install App
+        run: |
+          xcrun simctl bootstatus booted -b
+          xcrun simctl install booted build/Build/Products/Release-iphonesimulator/Halo.app
+
+      - name: Install Maestro
+        run: |
+          export MAESTRO_VERSION=2.10.0
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Run Flows
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+        run: >
+          maestro test e2e/
+          --debug-output maestro-debug
+          --test-output-dir maestro-output
+
+      - name: Upload Maestro Debug Output
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-debug
+          include-hidden-files: true
+          path: |
+            app/maestro-debug
+            app/maestro-output
+            ~/.maestro/tests

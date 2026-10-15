@@ -1,0 +1,77 @@
+name: Backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+  schedule:
+    - cron: '0 6 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: './backend/go.mod'
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.14.0
+          working-directory: backend
+          args: --timeout=3m --config=./.golangci.yaml
+
+  backend-unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: './backend/go.mod'
+
+      - name: Run Unit Tests
+        run: make -C backend test-unit
+
+  backend-integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: './backend/go.mod'
+
+      - name: Install Tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg cmake
+
+      - name: Cache Whisper
+        uses: actions/cache@v6
+        with:
+          path: |
+            backend/.tools/whisper.cpp/build/bin
+            backend/.tools/models
+          key: whisper-v1.9.4-tiny.en-${{ runner.os }}
+
+      - name: Build Whisper
+        run: |
+          if [ ! -x backend/.tools/whisper.cpp/build/bin/whisper-cli ]; then make -C backend whisper-build; fi
+          if [ ! -f backend/.tools/models/ggml-tiny.en.bin ]; then make -C backend whisper-model; fi
+
+      - name: Run Integration Tests
+        run: make -C backend test-integration
