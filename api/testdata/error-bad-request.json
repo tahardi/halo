@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "bad_request",
+    "message": "severity must be between 0 and 10"
+  }
+}

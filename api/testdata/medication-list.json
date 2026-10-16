@@ -1,0 +1,12 @@
+{
+  "medications": [
+    {
+      "id": "rizatriptan",
+      "name": "Rizatriptan",
+      "usual_amount": 1,
+      "unit": "tablet",
+      "kind": "acute",
+      "archived": false
+    }
+  ]
+}
