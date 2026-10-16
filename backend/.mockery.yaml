@@ -6,3 +6,9 @@ formatter: goimports
 log-level: info
 packages:
   github.com/tahardi/halo/backend/internal/version:
+  github.com/tahardi/halo/backend/internal/llm:
+    interfaces:
+      Client:
+  github.com/tahardi/halo/backend/internal/transcribe:
+    interfaces:
+      Transcriber:
