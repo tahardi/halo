@@ -52,6 +52,7 @@ test-live: tidy
 tools_dir=.tools
 whisper_version ?= v1.9.4
 whisper_cuda ?= 0
+whisper_native ?= ON
 whisper_model_name ?= tiny.en
 whisper_src=$(tools_dir)/whisper.cpp
 whisper_bin=$(whisper_src)/build/bin/whisper-cli
@@ -71,7 +72,8 @@ $(whisper_bin):
 	@cmake \
 		-S $(whisper_src) \
 		-B $(whisper_src)/build \
-		-DGGML_CUDA=$(whisper_cuda)
+		-DGGML_CUDA=$(whisper_cuda) \
+		-DGGML_NATIVE=$(whisper_native)
 	@cmake \
 		--build $(whisper_src)/build \
 		-j \
