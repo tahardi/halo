@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	model     = "claude-opus-5-5"
+	model     = "claude-sonnet-5-5"
 	maxTokens = 16000
 )
 

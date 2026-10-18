@@ -27,12 +27,17 @@ var testSchema = map[string]any{
 
 func messageJSON(t *testing.T, stopReason string, text string) string {
 	t.Helper()
+	return messageContentJSON(t, stopReason, []map[string]any{{"type": "text", "text": text}})
+}
+
+func messageContentJSON(t *testing.T, stopReason string, content []map[string]any) string {
+	t.Helper()
 	body := map[string]any{
 		"id":            "msg_1",
 		"type":          "message",
 		"role":          "assistant",
-		"model":         "claude-opus-5-5",
-		"content":       []map[string]any{{"type": "text", "text": text}},
+		"model":         "claude-sonnet-5-5",
+		"content":       content,
 		"stop_reason":   stopReason,
 		"stop_sequence": nil,
 		"usage":         map[string]any{"input_tokens": 1, "output_tokens": 1},
@@ -54,6 +59,22 @@ func TestAnthropic_Structured(t *testing.T) {
 			status:   http.StatusOK,
 			response: messageJSON(t, "end_turn", `{"value":"Maggie"}`),
 			want:     reply{Value: "Maggie"},
+		},
+		{
+			name:   "happy path - skips thinking and joins text blocks",
+			status: http.StatusOK,
+			response: messageContentJSON(t, "end_turn", []map[string]any{
+				{"type": "thinking", "thinking": "", "signature": "sig"},
+				{"type": "text", "text": `{"value":`},
+				{"type": "text", "text": `"Maggie"}`},
+			}),
+			want: reply{Value: "Maggie"},
+		},
+		{
+			name:     "error - truncated at max tokens",
+			status:   http.StatusOK,
+			response: messageJSON(t, "max_tokens", `{"value":"Mag`),
+			wantErr:  llm.ErrInvalidResponse,
 		},
 		{
 			name:     "error - refusal",
@@ -95,7 +116,7 @@ func TestAnthropic_Structured(t *testing.T) {
 			err := client.Structured(t.Context(), "system text", "user text", testSchema, &got)
 
 			// then
-			assert.Equal(t, "claude-opus-5-5", gotBody["model"])
+			assert.Equal(t, "claude-sonnet-5-5", gotBody["model"])
 			assert.Equal(t, "default", gotBody["fallbacks"])
 			assert.Contains(t, gotBeta, "server-side-fallback-2026-07-01")
 			outputConfig, ok := gotBody["output_config"].(map[string]any)
@@ -129,7 +150,7 @@ func TestAnthropic_Name(t *testing.T) {
 	got := client.Name()
 
 	// then
-	assert.Equal(t, "claude-opus-5-5", got)
+	assert.Equal(t, "claude-sonnet-5-5", got)
 }
 
 func mustJSON(t *testing.T, v any) []byte {
