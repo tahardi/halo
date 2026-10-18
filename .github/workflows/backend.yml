@@ -66,11 +66,11 @@ jobs:
           path: |
             backend/.tools/whisper.cpp/build/bin
             backend/.tools/models
-          key: whisper-v1.9.4-tiny.en-${{ runner.os }}
+          key: whisper-v1.9.4-tiny.en-portable-${{ runner.os }}
 
       - name: Build Whisper
         run: |
-          if [ ! -x backend/.tools/whisper.cpp/build/bin/whisper-cli ]; then make -C backend whisper-build; fi
+          if [ ! -x backend/.tools/whisper.cpp/build/bin/whisper-cli ]; then make -C backend whisper-build whisper_native=OFF; fi
           if [ ! -f backend/.tools/models/ggml-tiny.en.bin ]; then make -C backend whisper-model; fi
 
       - name: Run Integration Tests
