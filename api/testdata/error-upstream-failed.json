@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "upstream_failed",
+    "message": "running whisper: exit status 1"
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "attack": {
+    "id": "6f1c2a4e-8d3b-4c7a-9e21-0b5d7f3a1c88",
+    "started_at": "2026-10-13T07:00:00Z",
+    "ended_at": "2026-10-13T15:00:00Z",
+    "timezone": "America/New_York",
+    "peak_severity": 8,
+    "symptoms": [
+      "nausea",
+      "vomiting",
+      "light_sensitivity"
+    ],
+    "symptoms_other": null,
+    "notes": "Trail work in the morning and a short ride at night. Slight headache going to sleep.",
+    "lat": 44.48,
+    "lon": -73.21,
+    "source": "app",
+    "doses": [
+      {
+        "id": "0d9e8f7a-1b2c-4d3e-8f4a-5b6c7d8e9f01",
+        "medication_id": "rizatriptan",
+        "amount": 1,
+        "taken_at": "2026-10-13T07:00:00Z",
+        "relief": "some"
+      },
+      {
+        "id": "1e0f9a8b-2c3d-4e5f-9a0b-6c7d8e9f0a12",
+        "medication_id": "rizatriptan",
+        "amount": 1,
+        "taken_at": "2026-10-13T10:00:00Z",
+        "relief": null
+      }
+    ],
+    "created_at": "2026-10-13T07:01:12Z",
+    "updated_at": "2026-10-13T15:02:40Z"
+  },
+  "recordings": [
+    {
+      "id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+      "attack_id": "6f1c2a4e-8d3b-4c7a-9e21-0b5d7f3a1c88",
+      "recorded_at": "2026-10-13T19:00:00Z",
+      "status": "extracted",
+      "error": null,
+      "transcript": "Woke up at 3 AM with it, took a rizatriptan then and another at six, threw up until about eleven.",
+      "proposal": {
+        "started_at": "2026-10-13T07:00:00Z",
+        "ended_at": "2026-10-13T15:00:00Z",
+        "peak_severity": null,
+        "symptoms": [
+          "vomiting"
+        ],
+        "doses": [
+          {
+            "medication_id": "rizatriptan",
+            "amount": 1,
+            "taken_at": "2026-10-13T07:00:00Z"
+          },
+          {
+            "medication_id": "rizatriptan",
+            "amount": 1,
+            "taken_at": "2026-10-13T10:00:00Z"
+          }
+        ],
+        "unknown_medications": [
+          {
+            "name": "ibuprofen",
+            "amount": null,
+            "taken_at": null
+          }
+        ],
+        "notes": null,
+        "warnings": []
+      },
+      "created_at": "2026-10-13T19:00:05Z"
+    }
+  ],
+  "weather": {
+    "hours_recorded": 33,
+    "hours_expected": 33,
+    "pressure_at_start_hpa": 1004.2,
+    "pressure_change_24h_hpa": -9.6,
+    "temperature_at_start_c": 7.5,
+    "humidity_at_start_pct": 88
+  }
+}
