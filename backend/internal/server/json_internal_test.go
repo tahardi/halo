@@ -22,6 +22,7 @@ func TestDecodeJSON(t *testing.T) {
 		{name: "error - not json", body: `nope`, wantStatus: http.StatusBadRequest},
 		{name: "error - unknown field", body: `{"name":"x","extra":1}`, wantStatus: http.StatusBadRequest},
 		{name: "error - empty body", body: ``, wantStatus: http.StatusBadRequest},
+		{name: "error - wrong field type", body: `{"name":1}`, wantStatus: http.StatusBadRequest},
 		{
 			name:       "error - over 1 MB",
 			body:       `{"name":"` + strings.Repeat("a", maxJSONBody) + `"}`,

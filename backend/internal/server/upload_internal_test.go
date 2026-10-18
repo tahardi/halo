@@ -40,6 +40,12 @@ func TestParseMultipart(t *testing.T) {
 			contentType: "application/json",
 			wantStatus:  http.StatusBadRequest,
 		},
+		{
+			name:        "error - wrong multipart boundary",
+			audio:       []byte("audio"),
+			contentType: "multipart/form-data; boundary=wrong",
+			wantStatus:  http.StatusBadRequest,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

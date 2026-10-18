@@ -16,7 +16,7 @@ var errUnknownCommand = errors.New("unknown command")
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	err := dispatch(ctx, os.Args[1:], logger)
+	err := run(ctx, os.Args[1:], logger)
 	stop()
 	if err != nil {
 		logger.Error("running halo", "error", err)
@@ -24,7 +24,7 @@ func main() {
 	}
 }
 
-func dispatch(ctx context.Context, args []string, logger *slog.Logger) error {
+func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	if len(args) == 0 {
 		args = []string{"serve"}
 	}

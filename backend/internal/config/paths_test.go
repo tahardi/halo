@@ -50,6 +50,41 @@ func TestCheckPaths(t *testing.T) {
 		assert.Contains(t, err.Error(), "checking")
 	})
 
+	t.Run("error - media folder not writable", func(t *testing.T) {
+		// given
+		if os.Geteuid() == 0 {
+			t.Skip("root ignores folder permissions")
+		}
+		root := t.TempDir()
+		mediaDir := filepath.Join(root, "media")
+		require.NoError(t, os.Mkdir(mediaDir, 0o500))
+		t.Cleanup(func() { _ = os.Chmod(mediaDir, 0o700) })
+		cfg := config.Config{DBPath: filepath.Join(root, "halo.db"), MediaDir: mediaDir}
+
+		// when
+		err := config.CheckPaths(cfg)
+
+		// then
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "checking "+mediaDir)
+	})
+
+	t.Run("error - database folder missing", func(t *testing.T) {
+		// given
+		root := t.TempDir()
+		cfg := config.Config{
+			DBPath:   filepath.Join(root, "missing", "halo.db"),
+			MediaDir: filepath.Join(root, "media"),
+		}
+
+		// when
+		err := config.CheckPaths(cfg)
+
+		// then
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "checking "+filepath.Join(root, "missing"))
+	})
+
 	t.Run("error - media folder cannot be created", func(t *testing.T) {
 		// given
 		root := t.TempDir()

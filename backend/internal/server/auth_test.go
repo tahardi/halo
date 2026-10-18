@@ -23,6 +23,9 @@ func TestRequireKey(t *testing.T) {
 		{name: "error - wrong key", header: "Bearer wrong", wantStatus: http.StatusUnauthorized},
 		{name: "error - no scheme", header: "secret", wantStatus: http.StatusUnauthorized},
 		{name: "error - key prefix only", header: "Bearer secre", wantStatus: http.StatusUnauthorized},
+		{name: "error - empty token", header: "Bearer ", wantStatus: http.StatusUnauthorized},
+		{name: "error - wrong scheme", header: "Basic secret", wantStatus: http.StatusUnauthorized},
+		{name: "error - key with suffix", header: "Bearer secret2", wantStatus: http.StatusUnauthorized},
 		{name: "happy path - bearer", header: "Bearer secret", wantStatus: http.StatusOK},
 		{name: "happy path - lowercase scheme", header: "bearer secret", wantStatus: http.StatusOK},
 	}

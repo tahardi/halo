@@ -41,6 +41,9 @@ func TestLoad(t *testing.T) {
 	withHome := defaults
 	withHome.HomeLat = new(44.47)
 	withHome.HomeLon = new(-73.21)
+	withHomeBounds := defaults
+	withHomeBounds.HomeLat = new(-90.0)
+	withHomeBounds.HomeLon = new(180.0)
 	overridden := defaults
 	overridden.ListenAddr = "127.0.0.1:9000"
 	overridden.WhisperBin = "/bin/whisper"
@@ -63,6 +66,11 @@ func TestLoad(t *testing.T) {
 			name: "happy path - home location",
 			env:  with(with(baseEnv(), "HALO_HOME_LAT", "44.47"), "HALO_HOME_LON", "-73.21"),
 			want: withHome,
+		},
+		{
+			name: "happy path - home location on range bounds",
+			env:  with(with(baseEnv(), "HALO_HOME_LAT", "-90"), "HALO_HOME_LON", "180"),
+			want: withHomeBounds,
 		},
 		{
 			name: "happy path - explicit anthropic provider",
@@ -95,6 +103,16 @@ func TestLoad(t *testing.T) {
 		{
 			name:    "error - only home lat",
 			env:     with(baseEnv(), "HALO_HOME_LAT", "44.47"),
+			wantErr: config.ErrInvalidHome,
+		},
+		{
+			name:    "error - only home lon",
+			env:     with(baseEnv(), "HALO_HOME_LON", "-73.21"),
+			wantErr: config.ErrInvalidHome,
+		},
+		{
+			name:    "error - home lon not a number",
+			env:     with(with(baseEnv(), "HALO_HOME_LAT", "44.47"), "HALO_HOME_LON", "west"),
 			wantErr: config.ErrInvalidHome,
 		},
 		{
