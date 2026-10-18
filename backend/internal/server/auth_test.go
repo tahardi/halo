@@ -19,6 +19,8 @@ func TestRequireKey(t *testing.T) {
 		header     string
 		wantStatus int
 	}{
+		{name: "happy path - bearer", header: "Bearer secret", wantStatus: http.StatusOK},
+		{name: "happy path - lowercase scheme", header: "bearer secret", wantStatus: http.StatusOK},
 		{name: "error - no header", header: "", wantStatus: http.StatusUnauthorized},
 		{name: "error - wrong key", header: "Bearer wrong", wantStatus: http.StatusUnauthorized},
 		{name: "error - no scheme", header: "secret", wantStatus: http.StatusUnauthorized},
@@ -26,8 +28,6 @@ func TestRequireKey(t *testing.T) {
 		{name: "error - empty token", header: "Bearer ", wantStatus: http.StatusUnauthorized},
 		{name: "error - wrong scheme", header: "Basic secret", wantStatus: http.StatusUnauthorized},
 		{name: "error - key with suffix", header: "Bearer secret2", wantStatus: http.StatusUnauthorized},
-		{name: "happy path - bearer", header: "Bearer secret", wantStatus: http.StatusOK},
-		{name: "happy path - lowercase scheme", header: "bearer secret", wantStatus: http.StatusOK},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
