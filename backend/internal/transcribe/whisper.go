@@ -49,24 +49,32 @@ func (w *Whisper) Transcribe(ctx context.Context, audioPath string) (string, err
 		"-c:a", "pcm_s16le",
 		wav,
 	)
-	if _, err = run(ffmpeg); err != nil {
+	if _, err = run(ctx, ffmpeg); err != nil {
 		return "", fmt.Errorf("%w: ffmpeg: %w", ErrRunning, err)
 	}
 
 	whisper := exec.CommandContext(ctx, w.whisperBin, "-m", w.modelPath, "-f", wav, "-l", "en", "-nt", "-np")
-	out, err := run(whisper)
+	out, err := run(ctx, whisper)
 	if err != nil {
 		return "", fmt.Errorf("%w: whisper: %w", ErrRunning, err)
 	}
 	return strings.Join(strings.Fields(out), " "), nil
 }
 
-func run(cmd *exec.Cmd) (string, error) {
+func run(ctx context.Context, cmd *exec.Cmd) (string, error) {
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("%w: %s", err, strings.TrimSpace(stderr.String()))
+	err := cmd.Run()
+	detail := strings.TrimSpace(stderr.String())
+	switch {
+	case err == nil:
+		return stdout.String(), nil
+	case ctx.Err() != nil:
+		return "", ctx.Err()
+	case detail == "":
+		return "", err
+	default:
+		return "", fmt.Errorf("%w: %s", err, detail)
 	}
-	return stdout.String(), nil
 }

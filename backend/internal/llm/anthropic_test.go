@@ -1,6 +1,7 @@
 package llm_test
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -71,6 +72,34 @@ func TestAnthropic_Structured(t *testing.T) {
 			want: reply{Value: "Maggie"},
 		},
 		{
+			name:   "happy path - skips fallback block",
+			status: http.StatusOK,
+			response: messageContentJSON(t, "end_turn", []map[string]any{
+				{
+					"type":    "fallback",
+					"from":    map[string]any{"model": "claude-sonnet-5-5"},
+					"to":      map[string]any{"model": "claude-opus-5-5"},
+					"trigger": map[string]any{"type": "refusal"},
+				},
+				{"type": "text", "text": `{"value":"Maggie"}`},
+			}),
+			want: reply{Value: "Maggie"},
+		},
+		{
+			name:     "error - empty content",
+			status:   http.StatusOK,
+			response: messageContentJSON(t, "end_turn", []map[string]any{}),
+			wantErr:  llm.ErrInvalidResponse,
+		},
+		{
+			name:   "error - thinking without text",
+			status: http.StatusOK,
+			response: messageContentJSON(t, "end_turn", []map[string]any{
+				{"type": "thinking", "thinking": "", "signature": "sig"},
+			}),
+			wantErr: llm.ErrInvalidResponse,
+		},
+		{
 			name:     "error - truncated at max tokens",
 			status:   http.StatusOK,
 			response: messageJSON(t, "max_tokens", `{"value":"Mag`),
@@ -117,6 +146,7 @@ func TestAnthropic_Structured(t *testing.T) {
 
 			// then
 			assert.Equal(t, "claude-sonnet-5-5", gotBody["model"])
+			assert.EqualValues(t, 16000, gotBody["max_tokens"])
 			assert.Equal(t, "default", gotBody["fallbacks"])
 			assert.Contains(t, gotBeta, "server-side-fallback-2026-07-01")
 			outputConfig, ok := gotBody["output_config"].(map[string]any)
@@ -125,21 +155,37 @@ func TestAnthropic_Structured(t *testing.T) {
 			format, ok := outputConfig["format"].(map[string]any)
 			require.True(t, ok)
 			assert.Equal(t, "json_schema", format["type"])
-			assert.NotNil(t, format["schema"])
+			assert.JSONEq(t, string(mustJSON(t, testSchema)), string(mustJSON(t, format["schema"])))
 			assert.Contains(t, string(mustJSON(t, gotBody["messages"])), "user text")
 			assert.Contains(t, string(mustJSON(t, gotBody["system"])), "system text")
 			switch {
 			case tc.wantErr != nil:
 				require.ErrorIs(t, err, tc.wantErr)
 			case tc.wantAny:
-				require.Error(t, err)
+				require.ErrorContains(t, err, "calling claude")
 				require.NotErrorIs(t, err, llm.ErrRefused)
+				require.NotErrorIs(t, err, llm.ErrInvalidResponse)
 			default:
 				require.NoError(t, err)
 				assert.Equal(t, tc.want, got)
 			}
 		})
 	}
+
+	t.Run("error - context canceled", func(t *testing.T) {
+		// given
+		client := llm.NewAnthropic("test", option.WithBaseURL("http://127.0.0.1:1"), option.WithMaxRetries(0))
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		var got reply
+
+		// when
+		err := client.Structured(ctx, "system text", "user text", testSchema, &got)
+
+		// then
+		require.ErrorIs(t, err, context.Canceled)
+		require.ErrorContains(t, err, "calling claude")
+	})
 }
 
 func TestAnthropic_Name(t *testing.T) {

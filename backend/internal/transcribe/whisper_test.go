@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,10 +18,12 @@ const (
 	fakeFFmpeg       = "#!/bin/sh\nfor a; do last=$a; done; cp \"$3\" \"$last\"\n"
 	fakeFFmpegFail   = "#!/bin/sh\necho 'bad input' >&2\nexit 1\n"
 	fakeWhisper      = "#!/bin/sh\nprintf '  Hello from the trail.  \\n'\necho 'log line' >&2\n"
-	fakeWhisperCat   = "#!/bin/sh\n[ \"$1\" = -m ] && [ -f \"$2\" ] && [ \"$3\" = -f ] && cat \"$4\"\n"
+	fakeWhisperCat   = "#!/bin/sh\n[ \"$*\" = \"-m $2 -f $4 -l en -nt -np\" ] && [ -f \"$2\" ] && cat \"$4\"\n"
 	fakeWhisperLines = "#!/bin/sh\nprintf ' I woke up at three.\\n\\n  I threw up until eleven. \\n'\n"
 	fakeWhisperEmpty = "#!/bin/sh\nexit 0\n"
 	fakeWhisperFail  = "#!/bin/sh\necho 'bad model' >&2\nexit 1\n"
+	fakeWhisperQuiet = "#!/bin/sh\nexit 1\n"
+	fakeWhisperHang  = "#!/bin/sh\nexec sleep 30\n"
 )
 
 func TestWhisper_Transcribe(t *testing.T) {
@@ -29,10 +32,13 @@ func TestWhisper_Transcribe(t *testing.T) {
 		ffmpeg         string
 		whisper        string
 		canceled       bool
+		cancelDuring   bool
+		missingFFmpeg  bool
 		missingTempDir bool
 		want           string
 		wantErr        error
 		wantErrMsg     string
+		wantExactErr   string
 	}{
 		{
 			name:    "happy path - trims output and ignores stderr",
@@ -41,7 +47,7 @@ func TestWhisper_Transcribe(t *testing.T) {
 			want:    "Hello from the trail.",
 		},
 		{
-			name:    "happy path - passes model and converted wav to whisper",
+			name:    "happy path - passes model, converted wav, and flags to whisper",
 			ffmpeg:  fakeFFmpeg,
 			whisper: fakeWhisperCat,
 			want:    "audio",
@@ -53,7 +59,7 @@ func TestWhisper_Transcribe(t *testing.T) {
 			want:    "I woke up at three. I threw up until eleven.",
 		},
 		{
-			name:    "happy path - silent clip returns empty transcript",
+			name:    "happy path - empty tool output returns empty transcript",
 			ffmpeg:  fakeFFmpeg,
 			whisper: fakeWhisperEmpty,
 			want:    "",
@@ -80,6 +86,27 @@ func TestWhisper_Transcribe(t *testing.T) {
 			wantErr:  context.Canceled,
 		},
 		{
+			name:         "error - context canceled while tool runs",
+			ffmpeg:       fakeFFmpeg,
+			whisper:      fakeWhisperHang,
+			cancelDuring: true,
+			wantErr:      context.Canceled,
+		},
+		{
+			name:         "error - tool fails without stderr",
+			ffmpeg:       fakeFFmpeg,
+			whisper:      fakeWhisperQuiet,
+			wantErr:      transcribe.ErrRunning,
+			wantExactErr: "running transcription tool: whisper: exit status 1",
+		},
+		{
+			name:          "error - tool binary missing",
+			whisper:       fakeWhisper,
+			missingFFmpeg: true,
+			wantErr:       transcribe.ErrRunning,
+			wantErrMsg:    "ffmpeg: ",
+		},
+		{
 			name:           "error - temp dir missing",
 			ffmpeg:         fakeFFmpeg,
 			whisper:        fakeWhisper,
@@ -100,8 +127,12 @@ func TestWhisper_Transcribe(t *testing.T) {
 			if tt.missingTempDir {
 				tempDir = filepath.Join(tempDir, "missing")
 			}
+			ffmpegBin := writeScript(t, binDir, "ffmpeg", tt.ffmpeg)
+			if tt.missingFFmpeg {
+				ffmpegBin = filepath.Join(binDir, "missing")
+			}
 			w := transcribe.NewWhisper(
-				writeScript(t, binDir, "ffmpeg", tt.ffmpeg),
+				ffmpegBin,
 				writeScript(t, binDir, "whisper-cli", tt.whisper),
 				modelPath,
 				tempDir,
@@ -111,6 +142,9 @@ func TestWhisper_Transcribe(t *testing.T) {
 				cancel()
 			}
 			defer cancel()
+			if tt.cancelDuring {
+				time.AfterFunc(100*time.Millisecond, cancel)
+			}
 
 			// when
 			got, err := w.Transcribe(ctx, audioPath)
@@ -119,6 +153,9 @@ func TestWhisper_Transcribe(t *testing.T) {
 			if tt.wantErr != nil {
 				require.ErrorIs(t, err, tt.wantErr)
 				require.ErrorContains(t, err, tt.wantErrMsg)
+				if tt.wantExactErr != "" {
+					require.EqualError(t, err, tt.wantExactErr)
+				}
 			} else {
 				require.NoError(t, err)
 			}
