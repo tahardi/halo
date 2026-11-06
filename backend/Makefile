@@ -37,7 +37,7 @@ tidy:
 
 .PHONY: test-unit
 test-unit: tidy
-	@go test -v -count=1 -race ./internal/...
+	@go test -v -count=1 -race ./internal/... ./cmd/...
 
 .PHONY: test-integration
 test-integration: export WHISPER_BIN ?= $(CURDIR)/$(whisper_bin)
