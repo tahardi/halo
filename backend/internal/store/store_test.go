@@ -2,7 +2,9 @@ package store_test
 
 import (
 	"database/sql"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,9 +45,31 @@ func TestOpen(t *testing.T) {
 				('attacks', 'medications', 'doses', 'recordings', 'extractions', 'weather_hours')`,
 		).Scan(&tables))
 		assert.Equal(t, 6, tables)
+		var mode string
+		require.NoError(t, raw.QueryRowContext(t.Context(), "PRAGMA journal_mode").Scan(&mode))
+		assert.Equal(t, "wal", mode)
 	})
 
-	t.Run("happy path - foreign keys enforced", func(t *testing.T) {
+	for _, name := range []string{"with space.db", "what?.db", "hash#1.db", "100%.db"} {
+		t.Run("happy path - path contains special characters: "+name, func(t *testing.T) {
+			// given
+			path := filepath.Join(t.TempDir(), name)
+
+			// when
+			s, err := store.Open(t.Context(), path)
+
+			// then
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = s.Close() })
+			assert.FileExists(t, path)
+			a := attack("a-1", "2026-10-13T07:00:00Z")
+			a.Doses = []model.Dose{dose("d-1", "2026-10-13T07:00:00Z")}
+			_, err = s.PutAttack(t.Context(), a)
+			require.ErrorContains(t, err, "FOREIGN KEY")
+		})
+	}
+
+	t.Run("error - foreign keys enforced", func(t *testing.T) {
 		// given
 		s, _ := newStore(t)
 		a := attack("a-1", "2026-10-13T07:00:00Z")
@@ -55,7 +79,7 @@ func TestOpen(t *testing.T) {
 		_, err := s.PutAttack(t.Context(), a)
 
 		// then
-		require.Error(t, err)
+		require.ErrorContains(t, err, "FOREIGN KEY")
 	})
 
 	t.Run("error - schema newer than binary", func(t *testing.T) {
@@ -72,6 +96,24 @@ func TestOpen(t *testing.T) {
 
 		// then
 		require.ErrorIs(t, err, store.ErrSchemaTooNew)
+		var tables int
+		require.NoError(t, rawDB(t, path).QueryRowContext(
+			t.Context(),
+			"SELECT count(*) FROM sqlite_master",
+		).Scan(&tables))
+		assert.Zero(t, tables)
+	})
+
+	t.Run("error - file is not a database", func(t *testing.T) {
+		// given
+		path := filepath.Join(t.TempDir(), "halo.db")
+		require.NoError(t, os.WriteFile(path, []byte(strings.Repeat("not a database ", 100)), 0o600))
+
+		// when
+		_, err := store.Open(t.Context(), path)
+
+		// then
+		require.Error(t, err)
 	})
 
 	t.Run("error - folder does not exist", func(t *testing.T) {

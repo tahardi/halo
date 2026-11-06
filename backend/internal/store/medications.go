@@ -21,7 +21,12 @@ func (s *Store) PutMedication(ctx context.Context, m model.Medication) (model.Me
 			unit = excluded.unit,
 			kind = excluded.kind,
 			archived = excluded.archived`,
-		m.ID, m.Name, m.UsualAmount, m.Unit, string(m.Kind), m.Archived,
+		m.ID,
+		m.Name,
+		m.UsualAmount,
+		m.Unit,
+		string(m.Kind),
+		m.Archived,
 	)
 	if err != nil {
 		if isUnique(err) {

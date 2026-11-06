@@ -31,6 +31,24 @@ func TestStore_PutMedication(t *testing.T) {
 		assert.Equal(t, []model.Medication{updated}, meds)
 	})
 
+	t.Run("happy path - changes only the case of its own name", func(t *testing.T) {
+		// given
+		s, _ := newStore(t)
+		_, err := s.PutMedication(t.Context(), rizatriptan())
+		require.NoError(t, err)
+		updated := rizatriptan()
+		updated.Name = "RIZATRIPTAN"
+
+		// when
+		_, err = s.PutMedication(t.Context(), updated)
+
+		// then
+		require.NoError(t, err)
+		meds, err := s.ListMedications(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, []model.Medication{updated}, meds)
+	})
+
 	t.Run("error - same name with different case and id", func(t *testing.T) {
 		// given
 		s, _ := newStore(t)
@@ -47,18 +65,49 @@ func TestStore_PutMedication(t *testing.T) {
 		require.ErrorIs(t, err, store.ErrDuplicate)
 	})
 
-	t.Run("error - invalid kind rejected by schema", func(t *testing.T) {
+	t.Run("error - update renames into another medication", func(t *testing.T) {
 		// given
 		s, _ := newStore(t)
-		bad := rizatriptan()
-		bad.Kind = "daily"
+		_, err := s.PutMedication(t.Context(), rizatriptan())
+		require.NoError(t, err)
+		other := rizatriptan()
+		other.ID = "med-other"
+		other.Name = "Ibuprofen"
+		_, err = s.PutMedication(t.Context(), other)
+		require.NoError(t, err)
+		other.Name = "rizatriptan"
 
 		// when
-		_, err := s.PutMedication(t.Context(), bad)
+		_, err = s.PutMedication(t.Context(), other)
 
 		// then
-		require.Error(t, err)
+		require.ErrorIs(t, err, store.ErrDuplicate)
 	})
+
+	tests := []struct {
+		name string
+		edit func(m *model.Medication)
+	}{
+		{name: "error - invalid kind", edit: func(m *model.Medication) { m.Kind = "daily" }},
+		{name: "error - blank name", edit: func(m *model.Medication) { m.Name = "  " }},
+		{name: "error - blank unit", edit: func(m *model.Medication) { m.Unit = "  " }},
+		{name: "error - zero amount", edit: func(m *model.Medication) { m.UsualAmount = 0 }},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			s, _ := newStore(t)
+			bad := rizatriptan()
+			tc.edit(&bad)
+
+			// when
+			_, err := s.PutMedication(t.Context(), bad)
+
+			// then
+			require.Error(t, err)
+			require.NotErrorIs(t, err, store.ErrDuplicate)
+		})
+	}
 }
 
 func TestStore_ListMedications(t *testing.T) {

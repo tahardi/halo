@@ -1,6 +1,7 @@
 package store_test
 
 import (
+	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -18,6 +19,22 @@ func newStore(t *testing.T) (*store.Store, string) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = s.Close() })
 	return s, path
+}
+
+func storeWithMed(t *testing.T) (*store.Store, string) {
+	t.Helper()
+	s, path := newStore(t)
+	_, err := s.PutMedication(t.Context(), rizatriptan())
+	require.NoError(t, err)
+	return s, path
+}
+
+func rawDB(t *testing.T, path string) *sql.DB {
+	t.Helper()
+	raw, err := sql.Open("sqlite", path)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = raw.Close() })
+	return raw
 }
 
 func at(text string) time.Time {

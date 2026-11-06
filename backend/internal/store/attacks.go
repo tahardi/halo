@@ -96,7 +96,7 @@ func putDoses(ctx context.Context, tx *sql.Tx, attackID string, doses []model.Do
 			r := string(*d.Relief)
 			relief = &r
 		}
-		_, err := tx.ExecContext(ctx, `
+		res, err := tx.ExecContext(ctx, `
 			INSERT INTO doses (id, attack_id, medication_id, amount, taken_at, relief)
 			VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT (id) DO UPDATE SET
@@ -115,6 +115,13 @@ func putDoses(ctx context.Context, tx *sql.Tx, attackID string, doses []model.Do
 		)
 		if err != nil {
 			return fmt.Errorf("saving dose %s: %w", d.ID, err)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("checking saved dose %s: %w", d.ID, err)
+		}
+		if n == 0 {
+			return fmt.Errorf("%w: dose %s", ErrDuplicate, d.ID)
 		}
 	}
 	return nil
