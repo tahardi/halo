@@ -19,6 +19,7 @@ const (
 	ArchiveURL  = "https://archive-api.open-meteo.com/v1/archive"
 
 	archiveDelay   = 5 * 24 * time.Hour
+	forecastReach  = 90 * 24 * time.Hour
 	requestTimeout = 30 * time.Second
 	hourlyFields   = "pressure_msl,temperature_2m,relative_humidity_2m,precipitation"
 	maxBody        = 4 << 20
@@ -64,7 +65,8 @@ func (o *OpenMeteo) Hours(
 	from, to = from.UTC().Truncate(time.Hour), to.UTC().Truncate(time.Hour)
 
 	base, source := o.ForecastURL, "open-meteo-forecast"
-	if to.Before(o.Now().UTC().Add(-archiveDelay)) {
+	now := o.Now().UTC()
+	if to.Before(now.Add(-archiveDelay)) || from.Before(now.Add(-forecastReach)) {
 		base, source = o.ArchiveURL, "open-meteo-archive"
 	}
 	q := url.Values{}
@@ -81,6 +83,9 @@ func (o *OpenMeteo) Hours(
 	}
 	resp, err := o.Client.Do(req)
 	if err != nil {
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			err = urlErr.Err
+		}
 		return nil, fmt.Errorf("%w: %w", ErrUpstream, err)
 	}
 	defer resp.Body.Close()
@@ -93,13 +98,16 @@ func (o *OpenMeteo) Hours(
 		return nil, fmt.Errorf("%w: status %d: decoding body: %w", ErrUpstream, resp.StatusCode, err)
 	}
 	if resp.StatusCode != http.StatusOK {
+		if parsed.Reason == "" {
+			return nil, fmt.Errorf("%w: status %d", ErrUpstream, resp.StatusCode)
+		}
 		return nil, fmt.Errorf("%w: status %d: %s", ErrUpstream, resp.StatusCode, parsed.Reason)
 	}
 
 	h := parsed.Hourly
 	n := len(h.Time)
 	if len(h.PressureMSL) != n || len(h.Temperature) != n || len(h.Humidity) != n || len(h.Precipitation) != n {
-		return nil, fmt.Errorf("%w: hourly arrays have different lengths", ErrUpstream)
+		return nil, fmt.Errorf("%w: checking hourly arrays: lengths differ", ErrUpstream)
 	}
 	out := []model.WeatherHour{}
 	for i, raw := range h.Time {

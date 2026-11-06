@@ -17,6 +17,8 @@ func TestRound(t *testing.T) {
 		{"happy path - rounds down", 44.4812, 44.48},
 		{"happy path - rounds up", 44.4851, 44.49},
 		{"happy path - negative", -73.2149, -73.21},
+		{"happy path - half rounds away from zero", 0.125, 0.13},
+		{"happy path - negative half rounds away from zero", -0.125, -0.13},
 		{"happy path - already rounded", 12.5, 12.5},
 	}
 	for _, tt := range tests {
